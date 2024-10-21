@@ -1,0 +1,141 @@
+# Define global variables
+$apiKey = "" #
+$threadId = ""  # Reuse this thread ID ----- IMPORTANT: Remember to run function Create-NewThread and reuse that Thread ID so we don't create new Threads each time the script is run.
+$assistantId = ""  # Provided assistant ID
+
+# Set headers for all requests
+$headers = @{
+    "Authorization" = "Bearer $apiKey"
+    "Content-Type"  = "application/json"
+    "OpenAI-Beta"   = "assistants=v2"
+}
+
+# Function to make a simple API request
+function Invoke-APIRequest {
+    param (
+        [string]$url,
+        [string]$method,
+        [hashtable]$headers,
+        [hashtable]$body = $null
+    )
+
+    if ($body -ne $null) {
+        $jsonPayload = $body | ConvertTo-Json -Depth 3
+        Write-Host "Sending API request to URL: $url"
+        Write-Host "Payload: $jsonPayload"
+        $response = Invoke-RestMethod -Uri $url -Method $method -Headers $headers -Body $jsonPayload
+    } else {
+        Write-Host "Sending API request to URL: $url"
+        $response = Invoke-RestMethod -Uri $url -Method $method -Headers $headers
+    }
+
+    return $response
+}
+
+<#function Create-NewThread {
+#Function to create a new thread without needing an assistant ID
+
+    # Define the API URL for creating a new thread
+    $createThreadUrl = "https://api.openai.com/v1/threads"
+
+    Write-Host "Creating a new thread..."
+
+    # Send the POST request to create a new thread (no payload required)
+    $response = Invoke-RestMethod -Uri $createThreadUrl -Method "POST" -Headers $headers
+
+    # Output the thread ID
+    Write-Host "New thread created. Thread ID: $($response.id)"
+
+    # Return the thread ID for future use
+    return $response.id
+}
+
+# Example usage
+$threadId = Create-NewThread
+Write-Host "Thread ID: $threadId"
+#> #function Create-NewThread Function to create a new thread without needing an assistant ID
+
+# Function to add a message to the thread
+function Add-MessageToThread {
+    param (
+        [string]$inputMessage
+    )
+
+    Write-Host "Adding message to thread: $threadId"
+    Write-Host "inputMessage: $inputMessage"
+    Write-Host "input: $input"
+    
+    # Define the URL to add a message to the thread
+    $addMessageUrl = "https://api.openai.com/v1/threads/$threadId/messages"
+
+    # Create the payload to send the message
+     $payload = @{
+        "role" = "user"  # Ensure the role is set correctly to 'user'
+        "content" = "$inputMessage"
+    }
+
+    # Send API request to add the message
+    $response = Invoke-APIRequest -url $addMessageUrl -method "POST" -headers $headers -body $payload
+
+    Write-Host "Message added to thread."
+}
+
+# Function to run the assistant on the thread
+function Run-ThreadWithAssistant {
+    Write-Host "Running assistant on thread: $threadId with assistant: $assistantId"
+    
+    # Define the URL to run the assistant
+    $runThreadUrl = "https://api.openai.com/v1/threads/$threadId/runs"
+
+    # Create the payload with assistant ID
+    $payload = @{
+        "assistant_id" = $assistantId
+    }
+
+    # Send API request to run the assistant
+    $runResponse = Invoke-APIRequest -url $runThreadUrl -method "POST" -headers $headers -body $payload
+    Write-Host "Run started successfully. Run ID: $($runResponse.id)"
+}
+
+# Function to retrieve messages from the thread
+function Retrieve-ThreadMessages {
+     # Retrieve the list of messages from the 'data' field
+    $messages = $responseMessages.data
+
+    # Check if there are any messages
+    if ($messages.Count -gt 0) {
+        # Access the content of the last message
+        $lastMessageContent = $messages[0].content.text.value
+    
+
+            Write-Host "Message content: $lastMessageContent"
+    
+    } else {
+        Write-Host "No messages found."
+    }
+
+}
+
+# Main workflow to run all steps
+function Run-Workflow {
+    param (
+        [string]$input
+    )
+
+    Write-Host "Starting workflow with input: $input"
+    
+    # Step 1: Add message to the thread
+    $input = "This is a test through API to ChatGPT Assistant v2, please reply back with some test data. Keep it short."
+
+    Add-MessageToThread -inputMessage $input
+
+    # Step 2: Run the thread with the assistant
+    Run-ThreadWithAssistant
+
+    # Step 3: Retrieve the assistant's response
+    Retrieve-ThreadMessages
+}
+
+# Example usage of the workflow
+Run-Workflow -input $input
+
